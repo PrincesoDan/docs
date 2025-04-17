@@ -1,0 +1,165 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Aqua Protocol: StableSwap Mathematical Model}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{Aqua Protocol}
+
+The Aqua Protocol is a Soroban-based Automated Market Maker (AMM). Source code repository: \href{https://github.com/AquaToken/soroban-amm/tree/master}{GitHub - soroban-amm}
+
+\section{Equation - StableSwap Mathematics}
+
+The Aquarius protocol implements a StableSwap algorithm similar to Curve Finance for its stable liquidity pool. This document details the mathematical models that govern the behavior of the \href{https://github.com/AquaToken/soroban-amm/tree/master/liquidity_pool_stableswap}{Smart Contract}.
+
+\subsection{The StableSwap Invariant}
+
+Unlike Uniswap’s constant product model ($x \cdot y = k$), StableSwap uses a more complex invariant function:
+
+\begin{equation}
+A \cdot n^n \cdot \sum_{i=1}^{n} x_i + D = A \cdot D \cdot n^n + \frac{D^{n+1}}{n^n \cdot \prod_{i=1}^{n} x_i}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $x_i$ are the normalized balances of each token
+    \item $n$ is the number of tokens in the pool
+    \item $A$ is the amplification coefficient
+    \item $D$ is the invariant
+\end{itemize}
+
+Behavior of the invariant:
+\begin{itemize}
+    \item When $A \to 0$: behaves like constant sum AMM ($\sum x_i = k$)
+    \item When $A \to \infty$: behaves like constant product AMM ($\prod x_i = k$)
+    \item Intermediate $A$: optimal balance for stable tokens
+\end{itemize}
+
+\section{Core Mathematical Functions}
+
+\subsection{Swap: Token Exchange}
+
+\textbf{Function signature:} \verb|fn swap(user, in_idx, out_idx, in_amount, out_min) → out_amount|
+
+\begin{enumerate}
+    \item Normalization:
+    \begin{equation}
+    xp_i = \text{reserves}_i \cdot \text{precisionmul}_i
+    \end{equation}
+
+    \item Input update:
+    \begin{equation}
+    x' = xp_{\text{in\_idx}} + \text{in\_amount} \cdot \text{precision\_mul}_{\text{in\_idx}}
+    \end{equation}
+
+    \item New output balance:
+    \begin{equation}
+    y = \text{\_get\_y}(\text{in\_idx}, \text{out\_idx}, x', xp)
+    \end{equation}
+
+    \item Raw output:
+    \begin{equation}
+    dy_{\text{raw}} = xp_{\text{out\_idx}} - y - 1
+    \end{equation}
+
+    \item Fee application:
+    \begin{equation}
+    dy_{\text{fee}} = dy_{\text{raw}} \cdot \frac{\text{fee}}{\text{FEE\_DENOMINATOR}}
+    \end{equation}
+
+    \item Final output:
+    \begin{equation}
+    \text{out\_amount} = \frac{dy_{\text{raw}} - dy_{\text{fee}}}{\text{precision\_mul}_{\text{out\_idx}}}
+    \end{equation}
+
+    \item Minimum condition:
+    \textit{If} $\text{out\_amount} < \text{out\_min}$, \textit{transaction fails}.
+\end{enumerate}
+
+\subsection{get\_y: Output Balance Calculation}
+
+\textbf{Function signature:} \verb|fn get_y(in_idx, out_idx, x, xp) → y|
+
+\begin{enumerate}
+    \item Compute invariant:
+    \[
+    D = \text{\_get\_d}(xp, A)
+    \]
+
+    \item Coefficients:
+    \[
+    c = \frac{D^{n+1}}{(A \cdot n^n) \cdot \prod_{i \neq \text{out\_idx}} x_i}, \quad s = \sum_{i \neq \text{out\_idx}} x_i, \quad b = s + \frac{D}{A \cdot n}
+    \]
+
+    \item Newton iteration:
+    \[
+    y_{i+1} = \frac{y_i^2 + c}{2y_i + b - D}
+    \]
+
+    \item Stop when $|y_{i+1} - y_i| \leq 1$
+\end{enumerate}
+
+\subsection{Amplification Coefficient $A$}
+
+\textbf{Function signature:} \verb|fn a() → amp|
+
+$A$ evolves over time via:
+
+\[
+A(t) = 
+\begin{cases}
+A_0 + (A_1 - A_0) \cdot \frac{t - t_0}{t_1 - t_0}, & A_1 > A_0,\ t_0 \leq t < t_1 \\
+A_0 - (A_0 - A_1) \cdot \frac{t - t_0}{t_1 - t_0}, & A_1 < A_0,\ t_0 \leq t < t_1 \\
+A_1, & t \geq t_1
+\end{cases}
+\]
+
+\subsection{Invariant $D$ Calculation}
+
+\textbf{Function signature:} \verb|fn _get_d(xp, amp) → D|
+
+\begin{enumerate}
+    \item Sum:
+    \[
+    S = \sum_{i=1}^{n} x_i
+    \]
+
+    \item Initial $D = S$ if $S \ne 0$
+
+    \item Iterative steps:
+    \[
+    D_{p,j} = D_j \cdot \prod_{i=1}^{n} \frac{D_j}{n \cdot x_i}
+    \]
+    \[
+    D_{j+1} = \frac{(ann \cdot S + D_{p,j} \cdot n) \cdot D_j}{(ann - 1) \cdot D_j + (n + 1) \cdot D_{p,j}}, \quad \text{with } ann = A \cdot n^n
+    \]
+
+    \item Convergence when $|D_{j+1} - D_j| \leq 1$
+\end{enumerate}
+
+\section{Currency Implications}
+
+\begin{itemize}
+    \item \textbf{Reduced slippage} for stable token swaps.
+    \item \textbf{Adaptive flexibility} via $A$.
+    \item \textbf{Stable price zone} near token parity.
+    \item \textbf{Deviation resistance} discouraging arbitrage.
+\end{itemize}
+
+\section*{Annexes}
+
+\begin{itemize}
+    \item \href{https://github.com/AquaToken/soroban-amm/blob/main/liquidity_pool_stableswap/src/contract.rs#L72}{function a()}
+    \item \href{https://github.com/AquaToken/soroban-amm/blob/main/liquidity_pool_stableswap/src/contract.rs#L112}{function swap()}
+\end{itemize}
+
+\end{document}
