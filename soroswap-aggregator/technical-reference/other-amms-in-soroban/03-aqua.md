@@ -37,6 +37,9 @@ The `swap` function is the pool's main operation that allows exchanging one toke
 
 1. **Normalized data preparation:**
    $$xp_i = \text{reserves}_i \cdot \text{precision_mul}_i$$
+   $$
+   xp_i = \mathrm{reserves}_i \cdot \mathrm{precision\_mul}_i
+   $$
 
 2. **Compute new input balance:**
    $$x' = xp_{in\_idx} + in\_amount \cdot \text{precision_mul}_{in\_idx}$$
