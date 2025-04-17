@@ -36,13 +36,10 @@ The `swap` function is the pool's main operation that allows exchanging one toke
 **Mathematical model:**
 
 1. **Normalized data preparation:**
-   $$xp_i = \text{reserves}_i \cdot \text{precision_mul}_i$$
-   $$
-   xp_i = \mathrm{reserves}_i \cdot \mathrm{precision\_mul}_i
-   $$
+   $$xp_i = reserves_i \cdot precision\_mul_i$$
 
 2. **Compute new input balance:**
-   $$x' = xp_{in\_idx} + in\_amount \cdot \text{precision_mul}_{in\_idx}$$
+   $$x' = xp_{in\_idx} + in\_amount \cdot precision\_mul_{in\_idx}$$
 
 3. **Determine the new output balance:**
    $$y = \text{\_get\_y}(in\_idx, out\_idx, x', xp)$$
@@ -54,7 +51,7 @@ The `swap` function is the pool's main operation that allows exchanging one toke
    $$dy_{fee} = dy_{raw} \cdot \frac{fee}{FEE\_DENOMINATOR}$$
 
 6. **Final output amount:**
-   $$out\_amount = \frac{dy_{raw} - dy_{fee}}{\text{precision_mul}_{out\_idx}}$$
+   $$out\_amount = \frac{dy_{raw} - dy_{fee}}{precision\_mul}_{out\_idx}$$
 
 7. **Minimum check:**
    If $out\_amount < out\_min$, the transaction fails with error `OutMinNotSatisfied`
