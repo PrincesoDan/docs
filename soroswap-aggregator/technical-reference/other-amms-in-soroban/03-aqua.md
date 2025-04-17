@@ -1,8 +1,12 @@
-# Aqua Protocol - StableSwap Mathematics
+# Aqua Protocol 
 
-The Aquarius protocol implements a StableSwap algorithm similar to Curve Finance for its stable liquidity pool. This document provides a detailed explanation of the fundamental mathematical models that govern the behavior of the contract [CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK](https://stellar.expert/explorer/public/contract/CBQDHNBFBZYE4MKPWBSJOPIYLW4SFSXAXUTSXJN76GNKYVYPCKWC6QUK).
+The aqua protocol is a soroba-AMM: [repository](https://github.com/AquaToken/soroban-amm/tree/master)
 
-## The StableSwap Invariant Equation
+## Equation - StableSwap Mathematics
+
+The Aquarius protocol implements a StableSwap algorithm similar to Curve Finance for its stable liquidity pool. This document provides a detailed explanation of the fundamental mathematical models that govern the behavior of the [Smart Cntract](https://github.com/AquaToken/soroban-amm/tree/master/liquidity_pool_stableswap).
+
+### The StableSwap Invariant 
 
 The core of the StableSwap model is its invariant equation. Unlike Uniswap’s constant product model ($x \cdot y = k$), StableSwap uses a more complex invariant function:
 
@@ -69,7 +73,7 @@ This function solves for the value of $y$ (output token balance) that keeps the 
 
 2. **Prepare coefficients:**
    $$c = \frac{D^{n+1}}{(A \cdot n^n) \cdot \prod_{i \neq out\_idx} x_i}$$
-   
+
    $$s = \sum_{i \neq out\_idx} x_i$$
    
    $$b = s + \frac{D}{A \cdot n}$$
@@ -141,7 +145,7 @@ This function computes the value of the invariant $D$ for a given set of balance
 
 This algorithm converges quickly (typically in fewer than 10 iterations) to the correct value of $D$.
 
-## Economic Implications
+## Currency Implications
 
 The StableSwap model offers several key advantages:
 
