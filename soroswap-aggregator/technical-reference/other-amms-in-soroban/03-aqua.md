@@ -42,7 +42,7 @@ The `swap` function is the pool's main operation that allows exchanging one toke
    $$x' = xp_{in\_idx} + in\_amount \cdot precision\_mul_{in\_idx}$$
 
 3. **Determine the new output balance:**
-   $$y = \text{\_get\_y}(in\_idx, out\_idx, x', xp)$$
+   $$y = \_get\_y(in\_idx, out\_idx, x', xp)$$
 
 4. **Compute raw output amount:**
    $$dy_{raw} = xp_{out\_idx} - y - 1$$
@@ -69,7 +69,7 @@ This function solves for the value of $y$ (output token balance) that keeps the 
 **Mathematical model:**
 
 1. **Compute current invariant:**
-   $$D = \text{\_get\_d}(xp, A)$$
+   $$D = \_get\_d(xp, A)$$
 
 2. **Prepare coefficients:**
    $$c = \frac{D^{n+1}}{(A \cdot n^n) \cdot \prod_{i \neq out\_idx} x_i}$$
@@ -265,5 +265,198 @@ Aqua Protocol adopts this sophisticated model to provide optimal stable token ex
 
         dy
     }
-    ```
+```
+3. [function get_dy()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/contract.rs#L159):
+```rust
+    // Calculate the amount of token `j` that will be received for swapping `dx` of token `i`.
+    //
+    // # Arguments
+    //
+    // * `i` - The index of the token being swapped.
+    // * `j` - The index of the token being received.
+    // * `dx` - The amount of token `i` being swapped.
+    //
+    // # Returns
+    //
+    // * The amount of token `j` that will be received.
+    fn get_dy(e: Env, i: u32, j: u32, dx: u128) -> u128 {
+        // dx and dy in c-units
+        let precision_mul = get_precision_mul(&e);
+        let xp = Self::_xp(&e, &get_reserves(&e));
 
+        let x = xp.get(i).unwrap() + dx * precision_mul.get(i).unwrap();
+        let y = Self::_get_y(&e, i, j, x, &xp);
+
+        if y == 0 {
+            // pool is empty
+            return 0;
+        }
+
+        let dy = (xp.get(j).unwrap() - y - 1) / precision_mul.get(j).unwrap();
+        // The `fixed_mul_ceil` function is used to perform the multiplication
+        //  to ensure user cannot exploit rounding errors.
+        let fee = (get_fee(&e) as u128).fixed_mul_ceil(&e, &dy, &(FEE_DENOMINATOR as u128));
+        dy - fee
+    }
+```
+4. [function _get_y()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/contract.rs#L509):
+```rust
+    // Calculate x[out_idx] if one makes x[in_idx] = x
+    // Done by solving quadratic equation iteratively.
+    // x_1**2 + x_1 * (sum' - (A*n**n - 1) * D / (A * n**n)) = D ** (n + 1) / (n ** (2 * n) * prod' * A)
+    // x_1**2 + b*x_1 = c
+    //
+    // x_1 = (x_1**2 + c) / (2*x_1 + b)
+    //
+    // # Arguments
+    //
+    // * `i` - The index of the updated token with known balance.
+    // * `j` - The index of the updated token with balance to be found.
+    // * `x` - The known balance of token x[i].
+    // * `xp_` - The balances of each token in the pool.
+    //
+    // # Returns
+    //
+    // * The amount of token `j` that will be received.
+    fn _get_y(e: &Env, in_idx: u32, out_idx: u32, x: u128, xp: &Vec<u128>) -> u128 {
+        // x in the input is converted to the same price/precision
+        let tokens = get_tokens(e);
+        let n_coins = tokens.len();
+
+        if in_idx == out_idx {
+            panic_with_error!(e, LiquidityPoolValidationError::CannotSwapSameToken);
+        }
+        if out_idx >= n_coins {
+            panic_with_error!(e, LiquidityPoolValidationError::OutTokenOutOfBounds);
+        }
+
+        if in_idx >= n_coins {
+            panic_with_error!(e, LiquidityPoolValidationError::InTokenOutOfBounds);
+        }
+
+        let amp = Self::a(e.clone());
+        let d = Self::_get_d(e, &xp, amp);
+        let mut c = d.clone();
+        let mut s = U256::from_u32(e, 0);
+        let ann = U256::from_u128(e, amp * n_coins as u128);
+        let n_coins_256 = U256::from_u32(e, n_coins);
+
+        let mut x1;
+        for i in 0..n_coins {
+            if i == in_idx {
+                x1 = U256::from_u128(e, x);
+            } else if i != out_idx {
+                x1 = U256::from_u128(e, xp.get(i).unwrap());
+            } else {
+                continue;
+            }
+            s = s.add(&x1);
+            c = c.fixed_mul_floor(e, &d, &x1.mul(&n_coins_256));
+        }
+        let c = c.mul(&d).div(&ann.mul(&n_coins_256));
+        let b = s.add(&d.div(&ann)); // - D
+        let mut y_prev;
+        let mut y = d.clone();
+        for _i in 0..255 {
+            y_prev = y.clone();
+            y = y
+                .mul(&y)
+                .add(&c)
+                .div(&(U256::from_u32(e, 2).mul(&y).add(&b).sub(&d)));
+
+            // Equality with the precision of 1
+            if y > y_prev {
+                if y.sub(&y_prev) <= U256::from_u32(e, 1) {
+                    return y.to_u128().unwrap();
+                }
+            } else if y_prev.sub(&y) <= U256::from_u32(e, 1) {
+                return y.to_u128().unwrap();
+            }
+        }
+        panic_with_error!(e, LiquidityPoolError::MaxIterationsReached);
+    }
+
+```
+
+5. [function get_precision_mul()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/normalize.rs#L25C8-L25C68):
+```rust
+// Scales raw token amounts to match `Precision`, accounting for decimal differences.
+pub fn get_precision_mul(e: &Env, decimals: &Vec<u32>) -> Vec<u128> {
+    let precision = get_precision(decimals);
+    let mut precision_mul = Vec::new(e);
+    for token_decimals in decimals.iter() {
+        precision_mul.push_back(precision / 10u128.pow(token_decimals));
+    }
+    precision_mul
+}
+```
+6. [function xp()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/normalize.rs#L35):
+```rust
+// Reserves in normalized form (scaled to `Precision`)
+pub fn xp(e: &Env, reserves: &Vec<u128>) -> Vec<u128> {
+    let decimals = get_decimals(e);
+    let mut result = get_precision_mul(e, &decimals);
+    for i in 0..result.len() {
+        result.set(i, result.get(i).unwrap() * reserves.get(i).unwrap())
+    }
+    result
+}
+```
+7. [function _get_d()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/contract.rs#L446):
+```rust
+// Calculates the invariant `D` for the given token balances.
+    //
+    // # Arguments
+    //
+    // * `xp` - The balances of each token in the pool.
+    // * `amp` - The amplification coefficient in the form of A*N**(N-1).
+    //
+    // # Returns
+    //
+    // * The invariant `D`.
+    fn _get_d(e: &Env, xp: &Vec<u128>, amp: u128) -> U256 {
+        let zero = U256::from_u32(e, 0);
+        let one = U256::from_u32(e, 1);
+
+        let tokens = get_tokens(e);
+        let n_coins = tokens.len();
+        let n_coins_256 = U256::from_u32(e, n_coins);
+
+        let mut s = zero.clone();
+        for x in xp.iter() {
+            s = s.add(&U256::from_u128(e, x));
+        }
+        if s == zero {
+            return zero;
+        }
+
+        let mut d_prev;
+        let mut d = s.clone();
+        let ann = U256::from_u128(e, amp * n_coins as u128);
+        for _i in 0..255 {
+            let mut d_p = d.clone();
+            for x1 in xp.iter() {
+                d_p = d_p.fixed_mul_floor(e, &d, &U256::from_u128(e, x1 * n_coins as u128));
+            }
+            d_prev = d.clone();
+            d = ((ann.clone().mul(&s)).add(&(d_p.mul(&n_coins_256)))).fixed_mul_floor(
+                e,
+                &d,
+                &(((ann.clone().sub(&one)).mul(&d)).add(&((n_coins_256.add(&one)).mul(&d_p)))),
+            );
+
+            // // Equality with the precision of 1
+            if d.clone() > d_prev {
+                if d.sub(&d_prev) <= one {
+                    return d;
+                }
+            } else if d_prev.sub(&d) <= one {
+                return d;
+            }
+        }
+
+        // convergence typically occurs in 4 rounds or less, this should be unreachable!
+        // if it does happen the pool is borked and LPs can withdraw via `withdraw`
+        panic_with_error!(e, LiquidityPoolError::MaxIterationsReached);
+    }
+```
