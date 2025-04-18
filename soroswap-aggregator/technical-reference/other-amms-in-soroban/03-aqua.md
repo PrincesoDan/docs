@@ -42,7 +42,7 @@ The `swap` function is the pool's main operation that allows exchanging one toke
    $$x' = xp_{in\_idx} + in\_amount \cdot precision\_mul_{in\_idx}$$
 
 3. **Determine the new output balance:**
-   $$y = \text{_get_y}(in\_idx, out\_idx, x', xp)$$
+   $$y = \_get\_y(in\_idx, out\_idx, x', xp)$$
 
 4. **Compute raw output amount:**
    $$dy_{raw} = xp_{out\_idx} - y - 1$$
