@@ -1,5 +1,21 @@
 # Aqua Protocol
 
+## Overview
+
+The Aqua Protocol is an Automated Market Maker (AMM) implemented on Soroban, Stellar's smart contract platform. This protocol is specifically designed to optimize the exchange of stable tokens, utilizing an advanced mathematical model known as StableSwap, similar to the one employed by Curve Finance.
+
+This technical document covers:
+
+- The fundamental mathematics behind the StableSwap model
+- The invariant equations that maintain pool equilibrium
+- The core mathematical functions governing operations
+- The precision calculations for handling tokens with different decimals
+- The monetary implications and advantages of the model
+
+The Aqua protocol offers significant advantages such as reduced slippage for stable tokens, greater efficiency in exchange near parity, and adaptive mechanisms to maintain stability even when tokens slightly deviate from their expected value.
+
+## Repository
+
 The aqua protocol is a soroba-AMM: [repository](https://github.com/AquaToken/soroban-amm/tree/master)
 
 ## Equation - StableSwap Mathematics
@@ -38,49 +54,51 @@ The `swap` function is the pool's main operation that allows exchanging one toke
 **Mathematical model:**
 
 1. **Normalized data preparation:**
-   $$xp(i) = reserves_i \cdot precision\_mul(i)$$
+   $$xp(i) = reserves_i \cdot precisionMul(i)$$
 
 2. **Compute new input balance:**
-   $$x' = xp(in\_idx) + in\_amount \cdot precision\_mul(in\_idx)$$
+   $$x' = xp(inIDX) + inAmount \cdot precisionMul(inIDX)$$
 
 3. **Determine the new output balance:**
-   $$y = \mathrm{\_get\_y}(in\_idx, out\_idx, x', xp)$$
+   $$y = getY(inIDX, outIDX, x', xp)$$
 
 4. **Compute raw output amount:**
-   $$dy_{raw} = xp_{out\_idx} - y - 1$$
+   $$dy_{raw} = xp_{outIDX} - y - 1$$
 
 5. **Apply fee:**
-   $$dy_{fee} = dy_{raw} \cdot \frac{fee}{FEE\_DENOMINATOR}$$
+   $$dy_{fee} = dy_{raw} \cdot \frac{fee}{FEEDENOMINATOR}$$
 
 6. **Final output amount:**
-   $$out\_amount = \frac{dy_{raw} - dy_{fee}}{{precision\_mul}_{out\_idx}}$$
+   $$outAmount = \frac{dy_{raw} - dy_{fee}}{{precisionMul}_{outIDX}}$$
 
 7. **Minimum check:**
-   If $out\_amount < out\_min$, the transaction fails with error `OutMinNotSatisfied`
+   If $outAmount < outMin$, the transaction fails with error `OutMinNotSatisfied`
 
 This operation ensures that the invariant $D$ remains constant after the swap, preserving pool stability.
 
-### 2. _get_y: Output Balance Calculation
+### 2. getY (_get_y): Output Balance Calculation
 
 This function solves for the value of $y$ (output token balance) that keeps the pool's invariant constant after adjusting the input token balance.
 
 **Signature:**
 
-`fn get_y(in_idx, out_idx, x, xp) → y`
+`fn _get_y(in_idx, out_idx, x, xp) → y`
 
 **Mathematical model:**
 
 1. **Compute current invariant:**
-   $$    D = \text{\_get\_d}(xp, A)$$
+   $$D = getD(xp, A)$$
 
 2. **Prepare coefficients:**
-   $$c = \frac{D^{n+1}}{(A \cdot n^n) \cdot \prod_{i \neq out\_idx} x_i}$$
 
-   $$s = \sum_{i \neq out\_idx} x_i$$
+   $$c = \frac{D^{n+1}}{(A \cdot n^n) \cdot \prod_{i \neq outIDX} x_i}$$
+
+   $$s = \sum_{i \neq outIDX} x_i$$
 
    $$b = s + \frac{D}{A \cdot n}$$
 
 3. **Iterative solution (Newton's method):**
+
    $$y_{i+1} = \frac{y_i^2 + c}{2y_i + b - D}$$
 
 4. **Convergence criterion:**
@@ -116,7 +134,7 @@ Where:
 
 This ramp mechanism allows the pool's curvature to be gradually adjusted without causing price discontinuities.
 
-### 4. _get_d: Invariant Calculation
+### 4. getD (_get_d): Invariant Calculation
 
 This function computes the value of the invariant $D$ for a given set of balances and amplification coefficient.
 
@@ -154,7 +172,8 @@ This algorithm converges quickly (typically in fewer than 10 iterations) to the 
 This function retrieves the decimals for all tokens in a pool using the Soroban token client.
 
 **Formula**:
-$$ decimals = decimal_i$$
+
+$$decimals = decimal_i$$
 For each token in tokens
 
 #### b. get_precision: Calculate Target Precision
@@ -162,13 +181,15 @@ For each token in tokens
 Calculates the target precision for internal calculations, based on the maximum number of decimals among the tokens.
 
 **Formula**:
-$$ precision = 10^{max(decimals)}$$
+
+$$precision = 10^{max(decimals)}$$
 
 #### c. get_precision_mul: Scale Token Amounts
 
 Scales raw token amounts to match the `Precision`, accounting for decimal differences.
 
 **Formula**:
+
 $$precision\_mul(i) = \frac{precision}{10^{decimals_i}}$$
 
 #### d. xp: Reserves in Normalized Form
@@ -176,6 +197,7 @@ $$precision\_mul(i) = \frac{precision}{10^{decimals_i}}$$
 Calculates reserves in normalized form, scaled to the `Precision`, by multiplying each reserve by its corresponding precision multiplier.
 
 **Formula**:
+
 $$xp(i) = precision\_mul(i) \times reserves_i$$
 
 $$xp(i) = \frac{precision}{10^{decimals_i}} \times reserves_i$$
@@ -184,7 +206,7 @@ These functions are essential for handling tokens in a smart contract environmen
 
 ### Constants
 
-$$FEE\_DENOMINATOR = 10000$$
+$$FEEDENOMINATOR = 10000$$
 
 ## Currency Implications
 
@@ -213,22 +235,22 @@ Esta función calcula la cantidad de token `j` que se recibirá al intercambiar 
 **Modelo matemático:**
 
 1. **Preparación de datos normalizados:**
-   $$xp(i) = reserves_i \cdot precision\_mul(i)$$
+   $$xp(i) = reserves_i \cdot precisionMul(i)$$
 
 2. **Calcular nuevo balance de entrada:**
-   $$x' = xp(i) + dx \cdot precision\_mul(i)$$
+   $$x' = xp(i) + dx \cdot precisionMul(i)$$
 
 3. **Determinar el nuevo balance de salida:**
-   $$y = \mathrm{\_get\_y}(i, j, x', xp)$$
+   $$y = getY(i, j, x', xp)$$
 
 4. **Calcular cantidad bruta de salida:**
    $$dy_{raw} = xp(j) - y - 1$$
 
 5. **Aplicar tarifa:**
-   $$dy_{fee} = dy_{raw} \cdot \frac{fee}{FEE\_DENOMINATOR}$$
+   $$dy_{fee} = dy_{raw} \cdot \frac{fee}{FEEDENOMINATOR}$$
 
 6. **Cantidad final de salida:**
-   $$dy = \frac{dy_{raw} - dy_{fee}}{precision\_mul(j)}$$
+   $$dy = \frac{dy_{raw} - dy_{fee}}{precisionMul(j)}$$
 
 #### get_dx: Cálculo de la Cantidad de Token Enviado
 
@@ -241,22 +263,22 @@ Esta función calcula la cantidad de token `i` que se enviará al intercambiar `
 **Modelo matemático:**
 
 1. **Preparación de datos normalizados:**
-   $$xp(j) = reserves_j \cdot precision\_mul(j)$$
+   $$xp(j) = reserves_j \cdot precisionMul(j)$$
 
 2. **Aplicar tarifa a `dy`:**
-   $$dy_{w\_fee} = dy \cdot \frac{FEE\_DENOMINATOR}{FEE\_DENOMINATOR - fee} \cdot precision\_mul(j)$$
+   $$dy_{wFee} = dy \cdot \frac{FEEDENOMINATOR}{FEEDENOMINATOR - fee} \cdot precisionMul(j)$$
 
 3. **Verificar balance suficiente:**
-   Si $dy_{w\_fee} \geq xp(j)$, la transacción falla con error `InsufficientBalance`.
+   Si $dy_{wFee} \geq xp(j)$, la transacción falla con error `InsufficientBalance`.
 
 4. **Calcular nuevo balance de salida con tarifa:**
-   $$y_{w\_fee} = xp(j) - dy_{w\_fee}$$
+   $$y_{wFee} = xp(j) - dy_{wFee}$$
 
 5. **Determinar el nuevo balance de entrada:**
-   $$x = \mathrm{\_get\_y}(j, i, y_{w\_fee}, xp)$$
+   $$x = getY(j, i, y_{w\_fee}, xp)$$
 
 6. **Calcular cantidad de entrada:**
-   $$dx = \frac{x - xp(i) + 1}{precision\_mul(i)}$$
+   $$dx = \frac{x - xp(i) + 1}{precisionMul(i)}$$
 
 ### Anexos
 
