@@ -190,7 +190,7 @@ Scales raw token amounts to match the `Precision`, accounting for decimal differ
 
 **Formula**:
 
-$$precision\_mul(i) = \frac{precision}{10^{decimals_i}}$$
+$$precisionMul(i) = \frac{precision}{10^{decimals_i}}$$
 
 #### d. xp: Reserves in Normalized Form
 
@@ -198,7 +198,7 @@ Calculates reserves in normalized form, scaled to the `Precision`, by multiplyin
 
 **Formula**:
 
-$$xp(i) = precision\_mul(i) \times reserves_i$$
+$$xp(i) = precisionMul(i) \times reserves_i$$
 
 $$xp(i) = \frac{precision}{10^{decimals_i}} \times reserves_i$$
 
