@@ -1,4 +1,4 @@
-# Aqua Protocol 
+# Aqua Protocol
 
 The aqua protocol is a soroba-AMM: [repository](https://github.com/AquaToken/soroban-amm/tree/master)
 
@@ -6,19 +6,21 @@ The aqua protocol is a soroba-AMM: [repository](https://github.com/AquaToken/sor
 
 The Aquarius protocol implements a StableSwap algorithm similar to Curve Finance for its stable liquidity pool. This document provides a detailed explanation of the fundamental mathematical models that govern the behavior of the [Smart Contract](https://github.com/AquaToken/soroban-amm/tree/master/liquidity_pool_stableswap).
 
-### The StableSwap Invariant 
+### The StableSwap Invariant
 
 The core of the StableSwap model is its invariant equation. Unlike Uniswap's constant product model ($x \cdot y = k$), StableSwap uses a more complex invariant function:
 
 $$A \cdot n^n \cdot \sum_{i=1}^{n} x_i + D = A \cdot D \cdot n^n + \frac{D^{n+1}}{n^n \cdot \prod_{i=1}^{n} x_i}$$
 
 Where:
+
 - $x_i$ are the normalized balances of each token in the pool
 - $n$ is the number of tokens in the pool
 - $A$ is the amplification coefficient (explained below)
 - $D$ is the invariant that remains constant during swaps
 
 This equation produces a hybrid behavior:
+
 - When $A \to 0$: it approaches a constant sum AMM ($\sum x_i = k$)
 - When $A \to \infty$: it approaches a constant product AMM ($\prod x_i = k$)
 - For intermediate values of $A$: optimal balance for stable tokens
@@ -75,7 +77,7 @@ This function solves for the value of $y$ (output token balance) that keeps the 
    $$c = \frac{D^{n+1}}{(A \cdot n^n) \cdot \prod_{i \neq out\_idx} x_i}$$
 
    $$s = \sum_{i \neq out\_idx} x_i$$
-   
+
    $$b = s + \frac{D}{A \cdot n}$$
 
 3. **Iterative solution (Newton's method):**
@@ -98,7 +100,7 @@ The coefficient $A$ determines the curvature of the StableSwap function and can 
 
 The value of $A$ may follow a linear ramp over time:
 
-$$A(t) = 
+$$A(t) =
 \begin{cases}
 A_0 + (A_1 - A_0) \cdot \frac{t - t_0}{t_1 - t_0}, & \text{if } A_1 > A_0 \text{ and } t_0 \leq t < t_1 \\
 A_0 - (A_0 - A_1) \cdot \frac{t - t_0}{t_1 - t_0}, & \text{if } A_1 < A_0 \text{ and } t_0 \leq t < t_1 \\
@@ -133,11 +135,11 @@ This function computes the value of the invariant $D$ for a given set of balance
 
 3. **Iterative process:**
    For each iteration $j$:
-   
+
    $$D_{p,j} = D_j \cdot \prod_{i=1}^{n} \frac{D_j}{n \cdot x_i}$$
-   
+
    $$ann = A \cdot n^n$$
-   
+
    $$D_{j+1} = \frac{(ann \cdot S + D_{p,j} \cdot n) \cdot D_j}{(ann - 1) \cdot D_j + (n + 1) \cdot D_{p,j}}$$
 
 4. **Convergence criterion:**
