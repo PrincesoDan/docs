@@ -297,3 +297,16 @@ Esta función calcula la cantidad de token `i` que se enviará al intercambiar `
 7. [function get_dy()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/contract.rs#L159)
 
 8. [function get_dx()](https://github.com/AquaToken/soroban-amm/blob/a4b1b0e32fbdb632f8e37df6aa137f74e2568ff1/liquidity_pool_stableswap/src/contract.rs#L190)
+
+9. Information from Contract storage:
+```
+["Decimals"sym]: [7u32, 7u32, 7u32]
+["Fee"sym]: 50u32
+["FutureA"sym]: 6750u128
+["FutureATime"sym]: 1737620407u64
+["InitialA"sym]: 6750u128
+["InitialATime"sym]: 1737620407u64
+["PrecisionMul"sym]: [1u128, 1u128, 1u128]
+["Reserves"sym]: [34284747u128, 1334694452u128, 33520803u128]
+["Tokens"sym]: [CBVD…JLOU, CCW6…MI75, CDTK…BQLV]
+```
