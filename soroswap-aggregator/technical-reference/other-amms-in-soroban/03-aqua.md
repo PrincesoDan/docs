@@ -26,7 +26,7 @@ The Aquarius protocol implements a StableSwap algorithm similar to Curve Finance
 
 The core of the StableSwap model is its invariant equation. Unlike Uniswap's constant product model ($x \cdot y = k$), StableSwap uses a more complex invariant function:
 
-$$A \cdot n^n \cdot \sum_{i=1}^{n} x_i + D = A \cdot D \cdot n^n + \frac{D^{n+1}}{n^n \cdot \prod_{i=1}^{n} x_i}$$
+$$A \cdot n \cdot \sum_{i=1}^{n} x_i + D = A \cdot D \cdot n + \frac{D^{n+1}}{n \cdot \prod_{i=1}^{n} x_i}$$
 
 Where:
 
@@ -156,7 +156,7 @@ This function computes the value of the invariant $D$ for a given set of balance
 
    $$D_{p,j} = D_j \cdot \prod_{i=1}^{n} \frac{D_j}{n \cdot x_i}$$
 
-   $$ann = A \cdot n^n$$
+   $$ann = A \cdot n$$
 
    $$D_{j+1} = \frac{(ann \cdot S + D_{p,j} \cdot n) \cdot D_j}{(ann - 1) \cdot D_j + (n + 1) \cdot D_{p,j}}$$
 
